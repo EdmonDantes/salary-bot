@@ -30,6 +30,7 @@ import ru.loginov.telegram.api.request.SendMessageRequest
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
+import java.util.TreeMap
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executors
 
@@ -61,6 +62,20 @@ class CommandHandler(
 
 
         state = when (text.lowercase()) {
+            "/source", "/github" -> {
+                CompletableFuture.runAsync({
+                    runBlocking {
+                        telegram.sendMessage {
+                            this.chatId = chat.id
+                            markdown2 {
+                                url("https://github.com/EdmonDantes/salary-bot")
+                            }
+                            mainMenu()
+                        }
+                    }
+                }, executor)
+                state ?: UserState(userId, null)
+            }
             "/start" -> {
                 CompletableFuture.runAsync({
                     runBlocking {
@@ -258,14 +273,13 @@ class CommandHandler(
         }
         2 -> {
             try {
-
                 val date = when (states[1].lowercase()) {
                     "сегодня", "today" -> LocalDate.now()
                     "вчера", "yesterday" -> LocalDate.now().minusDays(1)
                     else -> LocalDate.parse(states[1], DATE_FORMAT)
                 }
 
-                if (date.isAfter(LocalDate.of(2024, 12, 31))
+                if (date.isAfter(LocalDate.now())
                     || date.isBefore(LocalDate.of(2022, 3, 1))
                 ) {
                     throw DateTimeParseException("Specified date is not range", date.format(DATE_FORMAT), 0)
@@ -280,15 +294,16 @@ class CommandHandler(
                                 append("Введите ваш банк")
                             }
                             replyKeyboard {
-                                banks.mapNotNull { if (it[0] is String) it[0] as String else null }.distinct().chunked(2) {
-                                    line {
-                                        it.forEach { bankName ->
-                                            add {
-                                                text = bankName
+                                banks.mapNotNull { if (it[0] is String) it[0] as String else null }.distinct()
+                                    .chunked(2) {
+                                        line {
+                                            it.forEach { bankName ->
+                                                add {
+                                                    text = bankName
+                                                }
                                             }
                                         }
                                     }
-                                }
                                 once()
                                 placeholder("Ваш банк")
                             }
@@ -437,10 +452,12 @@ class CommandHandler(
     }
 
     private fun calculateStat(chatId: Long, month: Int, year: Int) {
-        val stats = salaryRepository.findAllByIncomeDateYearAndIncomeDateMonth(year, month)
-            .groupBy {
-                it.incomeDateDay!!
-            }.mapValues { (_, v) -> v.groupBy { it.bank!! }.mapValues { (_, v1) -> v1.size } }
+
+        val stats = TreeMap<Int, MutableMap<String, MutableList<SalaryDescription>>>()
+
+        salaryRepository.findAllByIncomeDateYearAndIncomeDateMonth(year, month).forEach {
+            stats.computeIfAbsent(it.incomeDateDay!!) { TreeMap() }.computeIfAbsent(it.bank!!) { ArrayList() }.add(it)
+        }
 
         CompletableFuture.runAsync({
             runBlocking {
@@ -457,7 +474,7 @@ class CommandHandler(
                             append("\n\n$day:")
 
                             records.forEach { (bankName, count) ->
-                                append("\n'$bankName': '$count'")
+                                append("\n$bankName: $count")
                             }
                         }
                     }
