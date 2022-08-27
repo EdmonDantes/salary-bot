@@ -87,15 +87,10 @@ dependencies {
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.6.0")
 }
 
-tasks {
-    named<Copy>("dockerPrepare") {
-        val distTarTask = findByName("distTar")
-        if (distTarTask != null) {
-            dependsOn(distTarTask)
-        }
-    }
-}
-
 application {
     mainClass.set("ru.loginov.salary.bot.MainKt")
+}
+
+tasks.withType<Zip> {
+    archiveFileName.set("release.zip")
 }
