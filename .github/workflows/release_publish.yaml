@@ -29,10 +29,10 @@ jobs:
         with:
           path: './gradle.properties'
           property: 'version.minor'
-      - name: Generate version
-        run: echo "::set-env name=version::${{ steps.read_major_version.outputs.value }}.${{ steps.read_minor_version.outputs.value }}.${{github.run_number}}"
       - name: Print version
-        run: echo $version
+        run: echo ${{env.version}}
+        env:
+          version: '${{ steps.read_major_version.outputs.value }}.${{ steps.read_minor_version.outputs.value }}.${{github.run_number}}'
       - name: Write patch version
         uses: christian-draeger/write-properties@1.1.0
         with:
@@ -44,6 +44,6 @@ jobs:
       - name: Create new release
         uses: ncipollo/release-action@v1
         with:
-          tag: $version
+          tag: ${{env.version}}
           artifacts: "./build/distributions/release*.zip"
           token: ${{ secrets.TOKEN_GITHUB }}
