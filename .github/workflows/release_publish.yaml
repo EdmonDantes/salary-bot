@@ -44,6 +44,7 @@ jobs:
       - name: Create new release
         uses: ncipollo/release-action@v1
         with:
+          commit: ${{ github.sha }}
           tag: ${{env.version}}
           artifacts: "./build/distributions/release*.zip"
           token: ${{ secrets.TOKEN_GITHUB }}
