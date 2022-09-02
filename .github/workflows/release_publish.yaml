@@ -32,7 +32,7 @@ jobs:
       - name: Print version
         run: echo ${{env.version}}
         env:
-          version: '${{ steps.read_major_version.outputs.value }}.${{ steps.read_minor_version.outputs.value }}.${{github.run_number}}'
+          version: 'v${{ steps.read_major_version.outputs.value }}.${{ steps.read_minor_version.outputs.value }}.${{github.run_number}}'
       - name: Write patch version
         uses: christian-draeger/write-properties@1.1.0
         with:
@@ -45,6 +45,6 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           commit: ${{ github.sha }}
-          tag: ${{env.version}}
+          tag: '${{ env.version }}'
           artifacts: "./build/distributions/release*.zip"
           token: ${{ secrets.TOKEN_GITHUB }}
