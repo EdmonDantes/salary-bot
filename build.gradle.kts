@@ -56,7 +56,7 @@ allprojects {
 }
 
 group = "ru.loginov"
-version = "0.0.2"
+version = "${project.property("version.major")}.${project.property("version.minor")}.${project.property("version.patch")}"
 java.sourceCompatibility = JavaVersion.VERSION_11
 
 repositories {
@@ -93,5 +93,5 @@ application {
 }
 
 tasks.withType<Zip> {
-    archiveFileName.set("release.zip")
+    archiveFileName.set("release-${project.version}.zip")
 }

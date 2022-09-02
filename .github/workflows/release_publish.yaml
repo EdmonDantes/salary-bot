@@ -17,10 +17,33 @@ jobs:
         with:
           distribution: 'corretto'
           java-version: '11'
+      - name: Read major version form properties
+        id: read_major_version
+        uses: christian-draeger/read-properties@1.0.1
+        with:
+          path: './gradle.properties'
+          property: 'version.major'
+      - name: Read minor version form properties
+        id: read_minor_version
+        uses: christian-draeger/read-properties@1.0.1
+        with:
+          path: './gradle.properties'
+          property: 'version.minor'
+      - name: Generate version
+        run: echo "::set-env name=version::${{ steps.read_major_version.outputs.value }}.${{ steps.read_minor_version.outputs.value }}.${{github.run_number}}"
+      - name: Print version
+        run: echo $version
+      - name: Write patch version
+        uses: christian-draeger/write-properties@1.1.0
+        with:
+          path: './gradle.properties'
+          property: 'version.patch'
+          value: ${{ github.run_number }}
       - name: Build and create disctribution archive
         run: ./gradlew clean build distZip
       - name: Create new release
         uses: ncipollo/release-action@v1
         with:
-          artifacts: "build/distributions/release.zip"
+          tag: $version
+          artifacts: "./build/distributions/release*.zip"
           token: ${{ secrets.TOKEN_GITHUB }}
