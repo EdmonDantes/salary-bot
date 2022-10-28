@@ -312,7 +312,7 @@ class CommandHandler(
                     }
                 }, executor)
 
-                "add|${date.format(DATE_FORMAT)}|"
+                states.subList(0, states.size - 1).plus(DATE_FORMAT.format(date)).joinToString("|").plus("|")
             } catch (e: DateTimeParseException) {
                 CompletableFuture.runAsync({
                     runBlocking {
@@ -352,101 +352,160 @@ class CommandHandler(
                         }
                     }
                 }, executor)
-                "add|"
+                states.subList(0, states.size - 1).joinToString("|").plus("|")
             }
         }
+        3 -> {
+            CompletableFuture.runAsync({
+                runBlocking {
+                    telegram.sendMessage {
+                        this.chatId = chatId
+                        markdown2 {
+                            append("Хотите ли указать размер вашей зарплаты?")
+                        }
+                        replyKeyboard {
+                            line {
+                                add {
+                                    text = "Да"
+                                }
+                                add {
+                                    text = "Нет"
+                                }
+                            }
+                            once()
+                        }
+                    }
+                }
+            }, executor)
+
+            state.state.let { "$it|" }
+        }
         else -> {
-            val date = LocalDate.parse(states[1], DATE_FORMAT)
-            val bankName = states[2]
+            val shouldGetSalary = YES_ARRAY.contains(states.getOrNull(3)?.lowercase())
 
-            val shouldRewrite = YES_ARRAY.contains(states.getOrNull(3)?.lowercase())
-
-            if (states.size > 3 && !shouldRewrite) {
+            if (shouldGetSalary && states.size < 5) {
                 CompletableFuture.runAsync({
                     runBlocking {
                         telegram.sendMessage {
                             this.chatId = chatId
                             markdown2 {
-                                append("Ваша запись не была изменена")
+                                append("Укажите вашу зарплату в динарах")
                             }
-                            mainMenu()
                         }
                     }
                 }, executor)
-                null
+                state.state.let { "$it|" }
             } else {
-                val record = salaryRepository.findByUserIdAndIncomeDateYearAndIncomeDateMonth(
-                    state.userId!!,
-                    date.year,
-                    date.monthValue
-                ).orElse(null)
 
-                if (record == null || shouldRewrite) {
-                    try {
-                        salaryRepository.save(
-                            SalaryDescription(
-                                record?.id,
-                                state.userId,
-                                bankName,
-                                date.year,
-                                date.monthValue,
-                                date.dayOfMonth
-                            )
-                        )
+                val date = LocalDate.parse(states[1], DATE_FORMAT)
+                val bankName = states[2]
+                val salary = if (shouldGetSalary) states.getOrNull(4)?.toDoubleOrNull() else null
 
-                        CompletableFuture.runAsync({
-                            runBlocking {
-                                telegram.sendMessage {
-                                    this.chatId = chatId
-                                    markdown2 {
-                                        append("Ваш ответ записан")
-                                    }
-                                    mainMenu()
-                                }
-                            }
-                        }, executor)
-                    } catch (e: Exception) {
-                        CompletableFuture.runAsync({
-                            runBlocking {
-                                telegram.sendMessage {
-                                    this.chatId = chatId
-                                    markdown2 {
-                                        append("Произошла ошибка при сохранении, попробуйте еще раз")
-                                    }
-                                    mainMenu()
-                                }
-                            }
-                        }, executor)
-                        e.printStackTrace()
-                    }
-                    null
-                } else {
+                if (salary != null && salary < 0.0) {
                     CompletableFuture.runAsync({
                         runBlocking {
                             telegram.sendMessage {
                                 this.chatId = chatId
                                 markdown2 {
-                                    append("Вы уже сделали запись за этот месяц. Уверены что хотите перезаписать ее?")
-                                }
-                                replyKeyboard {
-                                    line {
-                                        add {
-                                            text = "Да"
-                                        }
-                                        add {
-                                            text = "Нет"
-                                        }
-                                    }
-                                    once()
-                                    placeholder("Перезаписать?")
+                                    append("Зарплата должна быть больше 0")
                                 }
                             }
                         }
                     }, executor)
+                    states.subList(0, 4).joinToString("|").plus("|")
+                } else {
 
-                    state.state?.let { "$it|" }
+                    val shouldRewrite = YES_ARRAY.contains(states.getOrNull(if (shouldGetSalary) 5 else 4)?.lowercase())
+
+                    if (states.size > (if (shouldGetSalary) 5 else 4) && !shouldRewrite) {
+                        CompletableFuture.runAsync({
+                            runBlocking {
+                                telegram.sendMessage {
+                                    this.chatId = chatId
+                                    markdown2 {
+                                        append("Ваша запись не была изменена")
+                                    }
+                                    mainMenu()
+                                }
+                            }
+                        }, executor)
+                        null
+                    } else {
+                        val record = salaryRepository.findByUserIdAndIncomeDateYearAndIncomeDateMonth(
+                            state.userId!!,
+                            date.year,
+                            date.monthValue
+                        ).orElse(null)
+
+                        if (record == null || shouldRewrite) {
+                            try {
+                                salaryRepository.save(
+                                    SalaryDescription(
+                                        record?.id,
+                                        state.userId,
+                                        bankName,
+                                        salary,
+                                        date.year,
+                                        date.monthValue,
+                                        date.dayOfMonth
+                                    )
+                                )
+
+                                CompletableFuture.runAsync({
+                                    runBlocking {
+                                        telegram.sendMessage {
+                                            this.chatId = chatId
+                                            markdown2 {
+                                                append("Ваш ответ записан")
+                                            }
+                                            mainMenu()
+                                        }
+                                    }
+                                }, executor)
+                            } catch (e: Exception) {
+                                CompletableFuture.runAsync({
+                                    runBlocking {
+                                        telegram.sendMessage {
+                                            this.chatId = chatId
+                                            markdown2 {
+                                                append("Произошла ошибка при сохранении, попробуйте еще раз")
+                                            }
+                                            mainMenu()
+                                        }
+                                    }
+                                }, executor)
+                                e.printStackTrace()
+                            }
+                            null
+                        } else {
+                            CompletableFuture.runAsync({
+                                runBlocking {
+                                    telegram.sendMessage {
+                                        this.chatId = chatId
+                                        markdown2 {
+                                            append("Вы уже сделали запись за этот месяц. Уверены что хотите перезаписать ее?")
+                                        }
+                                        replyKeyboard {
+                                            line {
+                                                add {
+                                                    text = "Да"
+                                                }
+                                                add {
+                                                    text = "Нет"
+                                                }
+                                            }
+                                            once()
+                                            placeholder("Перезаписать?")
+                                        }
+                                    }
+                                }
+                            }, executor)
+
+                            state.state?.let { "$it|" }
+                        }
+
+                    }
                 }
-
             }
         }
     }
@@ -454,9 +513,20 @@ class CommandHandler(
     private fun calculateStat(chatId: Long, month: Int, year: Int) {
 
         val stats = TreeMap<Int, MutableMap<String, MutableList<SalaryDescription>>>()
+        var salaryAvrg: Double? = null
+        var salaryValueCount = 0
 
         salaryRepository.findAllByIncomeDateYearAndIncomeDateMonth(year, month).forEach {
             stats.computeIfAbsent(it.incomeDateDay!!) { TreeMap() }.computeIfAbsent(it.bank!!) { ArrayList() }.add(it)
+            if (it.salaryValue != null) {
+                if (salaryAvrg == null) {
+                    salaryAvrg = it.salaryValue
+                    salaryValueCount++
+                } else {
+                    salaryAvrg = salaryAvrg!! + it.salaryValue!!
+                    salaryValueCount++
+                }
+            }
         }
 
         CompletableFuture.runAsync({
@@ -470,11 +540,17 @@ class CommandHandler(
                             }' на '${LocalDate.now().format(DATE_FORMAT)}'"
                         )
 
+                        if (salaryAvrg != null && salaryValueCount > 0) {
+                            append('\n')
+                            append("Средняя зарплата за месяц: ")
+                            append(String.format("%.2f", salaryAvrg!! / salaryValueCount))
+                        }
+
                         stats.forEach { (day, records) ->
                             append("\n\n$day:")
 
                             records.forEach { (bankName, count) ->
-                                append("\n$bankName: $count")
+                                append("\n$bankName: ${count.size}")
                             }
                         }
                     }

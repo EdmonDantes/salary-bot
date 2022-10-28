@@ -32,10 +32,11 @@ import javax.persistence.UniqueConstraint
 class SalaryDescription {
     constructor()
 
-    constructor(id: Int?, userId: Long?, bank: String?, incomeDateYear: Int?, incomeDateMonth: Int?, incomeDateDay: Int?) {
+    constructor(id: Int?, userId: Long?, bank: String?, salaryValue: Double?, incomeDateYear: Int?, incomeDateMonth: Int?, incomeDateDay: Int?) {
         this.id = id
         this.userId = userId
         this.bank = bank
+        this.salaryValue = salaryValue
         this.incomeDateYear = incomeDateYear
         this.incomeDateMonth = incomeDateMonth
         this.incomeDateDay = incomeDateDay
@@ -50,6 +51,9 @@ class SalaryDescription {
 
     @Column(nullable = false)
     var bank: String? = null
+
+    @Column
+    var salaryValue: Double? = null
 
     @Column(name = "income_date_year", nullable = false)
     var incomeDateYear: Int? = null
