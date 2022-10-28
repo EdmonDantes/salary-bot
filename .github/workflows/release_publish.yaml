@@ -41,10 +41,8 @@ jobs:
           value: ${{ github.run_number }}
       - name: Build and create disctribution archive
         run: ./gradlew clean build distZip
-      - name: Create new release
-        uses: ncipollo/release-action@v1
+      - name: Upload release like artifact
+        uses: actions/upload-artifact@v3
         with:
-          commit: ${{ github.sha }}
-          tag: '${{ env.version }}'
-          artifacts: "./build/distributions/release*.zip"
-          token: ${{ secrets.TOKEN_GITHUB }}
+          path: "./build/distributions/release*.zip"
+          if-no-files-found: warn
